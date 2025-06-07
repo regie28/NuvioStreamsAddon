@@ -7,7 +7,7 @@ const { parse } = require('hls-parser');
 const { URL } = require('url');
 
 // Constants from the original scraper
-const PROXY_URL = 'https://starlit-valkyrie-39f5ab.netlify.app/?destination=';
+const PROXY_URL = process.env.HOLLYMOVIEHD_PROXY_URL || process.env.SHOWBOX_PROXY_URL_VALUE;
 const VRF_SECRET_KEY = Buffer.from('c3VwZXJzZWNyZXRrZXk=', 'base64').toString();
 const API_BASE = 'https://reyna.bludclart.com/api/source/tomautoembed';
 
@@ -20,8 +20,14 @@ function generateVrf(tmdbId, season = '', episode = '') {
 
 // Proxy wrapper for fetch, adapted for this module
 async function proxiedFetchHolly(url, isJsonExpected = false) {
-  const proxiedUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
-  console.log(`[HollyMovieHD] Fetching: ${url} (via proxy)`);
+  let fetchUrl;
+  if (PROXY_URL) {
+    fetchUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
+    console.log(`[HollyMovieHD] Fetching: ${url} (via proxy)`);
+  } else {
+    fetchUrl = url;
+    console.log(`[HollyMovieHD] Fetching: ${url} (direct request)`);
+  }
   
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
@@ -36,7 +42,7 @@ async function proxiedFetchHolly(url, isJsonExpected = false) {
       'referer': 'https://watch.bludclart.com/'
     };
 
-    const response = await fetch(proxiedUrl, { 
+    const response = await fetch(fetchUrl, { 
       signal: controller.signal,
       headers: headers
     });
@@ -239,7 +245,14 @@ async function directFetchM3U8(url) {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36'
     };
 
-    const response = await fetch(url, { 
+    // Use proxied URL if PROXY_URL is available
+    let fetchUrl = url;
+    if (PROXY_URL) {
+      fetchUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
+      console.log(`[HollyMovieHD] Using proxy for M3U8 fetch`);
+    }
+
+    const response = await fetch(fetchUrl, { 
       signal: controller.signal,
       headers: headers
     });
